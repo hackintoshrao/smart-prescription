@@ -385,7 +385,7 @@ class IntentEntitiesMatch:
 
 	# Maintain the names of entities key's and values as dictionary here.
 	# the entity  values are maintained as data structure type set.
-	ENTITY_MAIN_TYPES = ["dosage", "med_type","duration", "any"]
+	ENTITY_MAIN_TYPES = ["dosage", "med_type","duration", "any", "med_consumption"]
 
 	def return_main_entities(self):
 		"""
@@ -596,14 +596,14 @@ def processRequest(req):
 			entity_value = entity_key_val[main_entity]
 			if main_entity == "any":
 				prescription["Medicine Name"] = entity_value
-
 			elif main_entity == "duration":
 				prescription["Duration of medicine intake"] = str(entity_value["amount"]) + " days"
-
 			elif main_entity == "dosage":
 				prescription["Medicine Dosage"] = entity_value
 			elif main_entity == "med_type":
 				prescription["Medicine Type"] = entity_value
+			elif main_entity == "med_consumption":
+				prescription["Medical Consumption"] = entity_value
 
 	print("precription")
 	print(prescription)
