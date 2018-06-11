@@ -492,6 +492,9 @@ class ParseDialogflowResponse:
 		return None
 
 
+# In memory prescrption
+final_prescription = {}
+
 def send_apiapi_request(message):
 
 	ai = apiai.ApiAI(CLIENT_ACCESS_TOKEN)
@@ -540,6 +543,32 @@ def messages():
 	r.headers['Content-Type'] = 'application/json'
 	return r
 
+
+@app.route('/delete', methods=['POST'])
+def delete():
+	"""
+	This is the webhook which will be invoked by dialogflow when an user interacts.
+	The request contains POST data which will be similar to its format which can witnessed in https://goo.gl/BUZaVz
+	Use it as a reference to parse any of its other fields in future.
+	"""
+	# Uncomment to get the JSON dump of the POST body from dialogflow.
+	print("DELETE:")
+	print(json.dumps(request.get_json(silent=True, force=True), indent=4))
+	req_dict = json.loads(request.data)
+	print("Email: ",req_dict["email"])
+	email = req_dict["email"]
+	if email in final_prescription:
+		final_prescription[email].pop()
+		res = makeWebhookResult(json.dumps(final_prescription[email]))
+		res = json.dumps(res, indent=4)
+		# Send the repsonse back to the user.
+		print("\nfinal response: " , res)
+		r = make_response(res)
+		r.headers['Content-Type'] = 'application/json'
+		return r
+
+
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
 	"""
@@ -550,8 +579,16 @@ def webhook():
 	# Uncomment to get the JSON dump of the POST body from dialogflow.
 	print("Request:")
 	print(json.dumps(request.get_json(silent=True, force=True), indent=4))
-	res = processRequest(request)
+	req_dict = json.loads(request.data)
+	print("Email: ",req_dict["sessionId"])
+	email = req_dict["sessionId"]
+	if email not in final_prescription:
+		final_prescription[email] = []
+
+	res = processRequest(request, email)
 	res = json.dumps(res, indent=4)
+
+
     # Uncommnet the lines below to get the dump of the response.
     #print(res)
 
@@ -561,7 +598,7 @@ def webhook():
 	r.headers['Content-Type'] = 'application/json'
 	return r
 
-def processRequest(req):
+def processRequest(req, email):
 	"""
 	Parse the request.
 	Process the solution.
@@ -569,10 +606,21 @@ def processRequest(req):
 	"""
 	# Parsing the POST request body into a dictionary for easy access.
 	process_req = ParseDialogflowResponse(req)
+
 	# Fetch intent.
 	intent = process_req.get_intent()
 	print("intent is: ", intent)
 	# Fetch entity key values.
+	if intent == "finish":
+		if email in final_prescription:
+			res = makeWebhookResult(json.dumps(final_prescription[email]))
+			final_prescription[email] = []
+			return res
+
+	if intent == "show":
+		if email in final_prescription:
+			res = makeWebhookResult(json.dumps(final_prescription[email]))
+			return res
 
 	request_dict = json.loads(request.data)
 
@@ -608,6 +656,8 @@ def processRequest(req):
 	print("precription")
 	print(prescription)
 
+	final_prescription[email].append(prescription)
+
 	# See if the given entity and intent have a match in our response dictionary.
 
 	"""
@@ -618,7 +668,7 @@ def processRequest(req):
 	    speech = query_answer.return_default_response()
 	"""
 
-	res = makeWebhookResult(json.dumps(prescription))
+	res = makeWebhookResult(json.dumps([prescription]))
 
 	print("response: ", res)
 	return res
@@ -630,7 +680,7 @@ def makeWebhookResult(speech):
     """
 
     return {
-        "speech": speech,
+        "speech":  speech,
         "displayText": speech,
         "source": "TIA TEST 1"
     }
